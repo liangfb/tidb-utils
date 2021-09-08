@@ -4,12 +4,13 @@ Install the prerequisites and configuration
 
 Usage Info:
 
-Example: run on AWS
+Example: run on AWS EC2
 
-```
-ssh -i <key file> username@nodeaddr < amzn_initial.sh
-```
-or
+Initialize TiKV nodes:
 ```
 ssh -i <key file> username@nodeaddr < 'bash -s' < amzn_initial.sh tikv nvme1n1
+```
+Initialize TiDB, PD and other nodes;
+```
+ssh -i <key file> username@nodeaddr < amzn_initial.sh
 ```
