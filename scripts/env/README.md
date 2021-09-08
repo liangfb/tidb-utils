@@ -3,7 +3,8 @@
 Install the prerequisites and configuration
 
 Usage Info:
-Example:
+
+Example: run on AWS
 
 ```
 ssh -i <key file> username@nodeaddr < amzn_initial.sh
