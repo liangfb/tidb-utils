@@ -7,24 +7,24 @@ global:
   data_dir: "/tidb-data"
 
 pd_servers:
-  - host: {pd-1}
-  - host: {pd-2}
-  - host: {pd-3}
+  - host: [pd-1]
+  - host: [pd-2]
+  - host: [pd-3]
 
 tidb_servers:
-  - host: {tidb-1}
-  - host: {tidb-2}
+  - host: [tidb-1]
+  - host: [tidb-2]
 
 tikv_servers:
-  - host: {tikv-1}
-  - host: {tikv-2}
-  - host: {tikv-3}
+  - host: [tikv-1]
+  - host: [tikv-2]
+  - host: [tikv-3]
 
 monitoring_servers:
-  - host: {monitor}
+  - host: [monitor]
 
 grafana_servers:
-  - host: {monitor}
+  - host: [monitor]
 
 alertmanager_servers:
-  - host: {monitor}
+  - host: [monitor]
