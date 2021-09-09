@@ -5,6 +5,7 @@ global:
   ssh_port: 22
   deploy_dir: "/tidb-deploy"
   data_dir: "/tidb-data"
+  arch: "arm64"   ## Supported values: "amd64", "arm64" (default: "amd64")
 
 pd_servers:
   - host: [pd-1]
