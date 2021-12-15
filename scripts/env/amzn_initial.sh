@@ -22,11 +22,11 @@ if [ "$role" = "tikv" ]
 then
     echo 'Initializing disks...'
     sudo mkfs -t ext4 /dev/${dev}
-    sudo mount /dev/${dev} /tidb-data/ -o nodelalloc,noatime,barrier=0
+    sudo mount /dev/${dev} /tidb-data/ -o nodelalloc,noatime
     lsblk -f
     uuid=$(sudo /usr/sbin/blkid | grep /dev/${dev} | cut -d '=' -f 2 | cut -d ' ' -f 1 | xargs)
     echo $uuid
-    sudo bash -c "echo UUID=${uuid}     /tidb-data  ext4   defaults,nodelalloc,noatime,barrier=0  0   2 >> /etc/fstab"
+    sudo bash -c "echo UUID=${uuid}     /tidb-data  ext4   defaults,nodelalloc,noatime  0   2 >> /etc/fstab"
     mount -t ext4
     echo '/etc/fstab:'
     cat /etc/fstab
@@ -70,6 +70,10 @@ sudo chmod +x /etc/rc.d/rc.local
 sudo bash -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled"
 sudo bash -c "echo never > /sys/kernel/mm/transparent_hugepage/defrag"
 
-echo 'Initialization completed, it will reboot after 5 seconds.'
-sleep 5
-sudo reboot
+echo '/etc/fstab:'
+cat /etc/fstab
+
+echo 'Configuration completed.'
+#echo 'Configuration completed, it will reboot after 5 seconds.'
+#sleep 5
+#sudo reboot
