@@ -1,0 +1,39 @@
+#server id of slave for binlog replication
+#each instance (master and slave) in replication group should have different server id
+server-id: 101
+
+#represents a MySQL/MariaDB instance or a replication group
+source-id: aurora-01
+
+#flavor: mysql/mariadb
+flavor: mysql
+
+#enable relay log
+enable-relay: true
+# relay-binlog-name: ''
+# relay-binlog-gtid: ''
+# relay-dir: ./relay_log
+
+#enable gtid in relay log unit
+enable-gtid: false
+
+#charset of DSN of source mysql/mariadb instance
+# charset: ''
+
+from:
+  host: aurora.cluster-cid2iowuup9k.rds.cn-northwest-1.amazonaws.com.cn
+  user: liangfb
+  password: XDj4DYgaJPjr6aVGlRMMN0BjusQ+HrbsR+KQ
+  port: 3306
+
+#relay log purge strategy
+#purge:
+#  interval: 3600
+#  expires: 24
+#  remain-space: 15
+
+#task status checker
+#checker:
+#  check-enable: true
+#  backoff-rollback: 5m
+#  backoff-max: 5m

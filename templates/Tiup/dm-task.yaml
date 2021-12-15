@@ -1,0 +1,76 @@
+name: task-test             # 任务名称，需要全局唯一
+task-mode: all # 任务模式， all | incremental, 设为 "incremental" 即只进行增量数据迁移
+shard-mode: "pessimistic" # 如果为分库分表合并任务则需要配置该项。默认使用悲观协调模式 "pessimistic"，在深入了解乐观协调模式的原理和使用限制后，也可以设置为乐观协调模式 "optimistic"
+online-ddl: true
+
+
+## 配置下游 TiDB 数据库实例访问信息
+target-database:       # 下游数据库实例配置
+  host: "172.31.12.226"
+  port: 4000
+  user: "root"
+  password: ""         # 如果密码不为空，则推荐使用经过 dmctl 加密的密文
+
+routes:
+  rule-1:
+    schema-pattern: "classicmodels"
+#    table-pattern: "*"
+    target-schema: "classicmodels_replica"
+#    target-table: "*"
+
+
+filters:                                        # 上游数据库实例匹配的表的 binlog event filter 规则集
+  filter-rule-1:                           # 配置名称
+    schema-pattern: "*"                    # 库名匹配规则，支持通配符 "*" 和 "?"
+    table-pattern: "*"                     # 表名匹配规则，支持通配符 "*" 和 "?"
+    events: ["truncate table", "drop table"]    # 匹配哪些 event 类型
+    sql-pattern: ["^DROP\\s+PROCEDURE", "^CREATE\\s+PROCEDURE"]
+    action: Ignore     
+
+
+##  使用黑白名单配置需要同步的表
+block-allow-list:   # 数据源数据库实例匹配的表的 block-allow-list 过滤规则集，如果 DM 版本早于 v2.0.0-beta.2 则使用 black-white-list
+  bw-rule-1:        # 黑白名单配置项 ID
+    do-dbs: ["classicmodels"] # 迁移哪些库
+#    do-tables:
+#    - db-name: ""
+#      tbl-name: ""
+
+
+
+## 【可选配置】如果增量数据迁移需要重复迁移已经在全量数据迁移中完成迁移的数据，则需要开启 safe mode 避免增量数据迁移报错
+##  该场景多见于，全量迁移的数据不属于数据源的一个一致性快照，随后从一个早于全量迁移数据之前的位置开始同步增量数据
+syncers:            # sync 处理单元的运行配置参数
+  global:           # 配置名称
+    safe-mode: true # 设置为 true，则将来自数据源的 `INSERT` 改写为 `REPLACE`，将 `UPDATE` 改写为 `DELETE` 与 `REPLACE`，保证在表结构中存在主键或唯一索引的条件下迁移数据时可以重复导入 DML。在启动或恢复增量复制任务的前 1 分钟内 TiDB DM 会自动启动 safe mode
+    worker-count: 16                 # 应用已传输到本地的 binlog 的并发线程数量，默认值为 16。调整此参数不会影响上游拉取日志的并发，但会对下游产生显著压力。
+    batch: 200
+
+mydumpers:                           # dump 处理单元的运行配置参数
+  global:                            # 配置名称
+    threads: 4                       # dump 处理单元从上游数据库实例导出数据的线程数量，默认值为 4
+    chunk-filesize: 64               # dump 处理单元生成的数据文件大小，默认值为 64，单位为 MB
+    extra-args: "--consistency none" # dump 处理单元的其他参数，不需要在 extra-args 中配置 table-list，DM 会自动生成
+
+loaders:                             # load 处理单元的运行配置参数
+  global:                            # 配置名称
+    pool-size: 16                    # load 处理单元并发执行 dump 处理单元的 SQL 文件的线程数量，默认值为 16，当有多个实例同时向 TiDB 迁移数据时可根据负载情况适当调小该值
+    dir: "./dumped_data"             # dump 处理单元输出 SQL 文件的目录，同时也是 load 处理单元读取文件的目录。该配置项的默认值为 "./dumped_data"。同实例对应的不同任务必须配置不同的目录
+
+## 配置数据源
+mysql-instances:
+  - source-id: "aurora-01"         # 数据源 ID，可以从数据源配置中获取
+    block-allow-list: "bw-rule-1" # 引入上面黑白名单配置
+    route-rules: ["rule-1"]    # 该上游数据库实例匹配的表到下游数据库的 table routing 规则名称
+    filter-rules: ["filter-rule-1"] # 该上游数据库实例匹配的表的 binlog event filter 规则名称
+#    expression-filters: ["even_c"]                   # 使用名为 even_c 的表达式过滤规则    
+
+    mydumper-config-name: "global"          # mydumpers 配置的名称
+    loader-config-name: "global"            # loaders 配置的名称
+    syncer-config-name: "global"  # 引用上面的 syncers 增量数据配置
+
+
+    meta:                         # `task-mode` 为 `incremental` 且下游数据库的 `checkpoint` 不存在时 binlog 迁移开始的位置; 如果 `checkpoint` 存在，以 `checkpoint` 为准
+#      binlog-name: "mysql-bin.000001"
+#      binlog-pos: 2022
+#      binlog-gtid: "09bec856-ba95-11ea-850a-58f2b4af5188:1-9"

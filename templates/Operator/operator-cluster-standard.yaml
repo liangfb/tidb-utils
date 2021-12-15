@@ -1,0 +1,88 @@
+apiVersion: pingcap.com/v1alpha1
+kind: TidbCluster
+metadata:
+  name: tioperator-cluster
+spec:
+  version: v5.1.2
+  timezone: Asia/Shanghai
+  configUpdateStrategy: RollingUpdate
+  pvReclaimPolicy: Retain
+  schedulerName: tidb-scheduler
+  enableDynamicConfiguration: true
+  pd:
+    baseImage: uhub.service.ucloud.cn/pingcap/pd
+    replicas: 1
+    requests:
+      storage: "10Gi"
+    config:
+      log:
+        level: info
+      replication:
+        location-labels:
+        - zone
+        max-replicas: 3
+    nodeSelector:
+      dedicated: pd
+    tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      operator: Equal
+      value: pd
+  tikv:
+    baseImage: uhub.service.ucloud.cn/pingcap/tikv
+    config:
+      raftdb:
+        raftdb.defaultcf:
+          write-buffer-size: "256MB"
+      raftstore:
+        apply-pool-size: 4
+        raft-log-gc-tick-interval: "1s"              
+    replicas: 1
+    storageClassName: tidb-ebs
+    requests:
+      storage: "200Gi"
+    config: {}
+    nodeSelector:
+      dedicated: tikv
+    tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      operator: Equal
+      value: tikv
+  tidb:
+    baseImage: uhub.service.ucloud.cn/pingcap/tidb
+    replicas: 1
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: 'false'
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+        service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+        service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+      exposeStatus: true
+      externalTrafficPolicy: Local
+      type: LoadBalancer
+    config:
+      log:
+        level: info
+      performance:
+        max-procs: 0
+        tcp-keep-alive: true
+        committer-concurrency: 256
+    annotations:
+      tidb.pingcap.com/sysctl-init: "true"
+    podSecurityContext:
+      sysctls:
+      - name: net.ipv4.tcp_keepalive_time
+        value: "300"
+      - name: net.ipv4.tcp_keepalive_intvl
+        value: "75"
+      - name: net.core.somaxconn
+        value: "32768"
+    separateSlowLog: true
+    nodeSelector:
+      dedicated: tidb
+    tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      operator: Equal
+      value: tidb
