@@ -62,6 +62,10 @@ sudo chmod +x /etc/rc.d/rc.local
 sudo bash -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled"
 sudo bash -c "echo never > /sys/kernel/mm/transparent_hugepage/defrag"
 
-echo 'Initialization completed, it will reboot after 5 seconds.'
-sleep 5
-sudo reboot
+echo '/etc/fstab:'
+cat /etc/fstab
+
+echo 'Configuration completed.'
+#echo 'Initialization completed, it will reboot after 5 seconds.'
+#sleep 5
+#sudo reboot
