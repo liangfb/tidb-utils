@@ -17,8 +17,9 @@
    git clone https://github.com/liangfb/tidb-utils
    ```
    
-   针对Amazon Linux 2操作系统  
-   配置TiKV和TiFlash节点：
+   以下针对Amazon Linux 2操作系统  
+   
+   **配置TiKV和TiFlash节点：**
    ```bash
    cd tidb-utils/scripts/env/
    ```
@@ -30,7 +31,7 @@
     ssh -i mykey.pem ec2-user@172.31.10.8 'bash -s' < amzn_initial.sh tikv nvme1n1
    ```
 
-   配置PD, TiDB和Monitor节点：
+   **配置PD, TiDB和Monitor节点：**
    ```bash
     ssh -i <key file> ec2-user@nodeipaddr < amzn_initial.sh
    ```  
