@@ -11,7 +11,8 @@ spec:
   enableDynamicConfiguration: true
   pd:
     baseImage: uhub.service.ucloud.cn/pingcap/pd
-    replicas: 1
+    maxFailoverCount: 0
+    replicas: 3
     requests:
       storage: "10Gi"
     config:
@@ -30,6 +31,7 @@ spec:
       value: pd
   tikv:
     baseImage: uhub.service.ucloud.cn/pingcap/tikv
+    maxFailoverCount: 0
     config:
       raftdb:
         raftdb.defaultcf:
@@ -37,7 +39,7 @@ spec:
       raftstore:
         apply-pool-size: 4
         raft-log-gc-tick-interval: "1s"              
-    replicas: 1
+    replicas: 3
     storageClassName: tidb-ebs
     requests:
       storage: "200Gi"
@@ -51,7 +53,8 @@ spec:
       value: tikv
   tidb:
     baseImage: uhub.service.ucloud.cn/pingcap/tidb
-    replicas: 1
+    maxFailoverCount: 0
+    replicas: 2
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: 'false'
