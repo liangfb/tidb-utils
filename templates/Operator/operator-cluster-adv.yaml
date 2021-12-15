@@ -185,7 +185,7 @@ spec:
     replicas: 3
 
     ## max inprogress failover PD pod counts
-    # maxFailoverCount: 3
+    # maxFailoverCount: 0
 
     ## describes the compute resource requirements and limits.
     ## Ref: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
@@ -366,7 +366,7 @@ spec:
     replicas: 3
 
     ## max inprogress failover TiDB pod counts
-    # maxFailoverCount: 3
+    # maxFailoverCount: 0
 
     ## describes the compute resource requirements.
     ## Ref: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
@@ -584,7 +584,7 @@ spec:
     replicas: 3
 
     ## max inprogress failover TiKV pod counts
-    # maxFailoverCount: 3
+    # maxFailoverCount: 0
 
     ## describes the compute resource requirements.
     ## Ref: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
