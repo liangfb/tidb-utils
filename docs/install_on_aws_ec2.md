@@ -76,7 +76,6 @@
    raftdb.defaultcf.write-buffer-size: 256MB
    raftstore.apply-pool-size: 4(CPU > 8cores)
    raftstore.store-pool-size: 4(CPU > 8cores)
-   server.grpc-concurrency: 4(CPU > 8cores)
    raftstore.raft-max-inflight-msgs: 1024
    raftdb.max-background-jobs: 8 or 16
    raftdb.defaultcf.soft-pending-compaction-bytes-limit: 384GB
