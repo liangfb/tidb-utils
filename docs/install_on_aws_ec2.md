@@ -12,27 +12,31 @@
    ```
 
 ## 2. 快速配置EC2系统环境
-   针对Amazon Linux 2操作系统：
-   配置TiKV和TiFlash节点：
-   ```bash
-   cd tidb-utils/scripts/env/
-   ssh -i <your key file> ec2-user@nodeaddr 'bash -s' < amzn_initial.sh tikv <data-volume-device>
-   ```
-   示例：
-   ```bash
-    ssh -i <your key file> ec2-user@nodeaddr 'bash -s' < amzn_initial.sh tikv nvme1n1
-   ```
-
-   配置PD, TiDB和Monitor节点：
-   ```bash
-    ssh -i <key file> ec2-user@nodeaddr < amzn_initial.sh
-   ```  
-
-## 3. 准备拓扑文件
    克隆Repo:
    ```Bash
    git clone https://github.com/liangfb/tidb-utils
    ```
+   
+   针对Amazon Linux 2操作系统  
+   配置TiKV和TiFlash节点：
+   ```bash
+   cd tidb-utils/scripts/env/
+   ```
+   ```bash   
+   ssh -i <your key file> ec2-user@nodeipaddr 'bash -s' < amzn_initial.sh tikv <data-volume-device>
+   ```
+   示例：
+   ```bash
+    ssh -i mykey.pem ec2-user@172.31.10.8 'bash -s' < amzn_initial.sh tikv nvme1n1
+   ```
+
+   配置PD, TiDB和Monitor节点：
+   ```bash
+    ssh -i <key file> ec2-user@nodeipaddr < amzn_initial.sh
+   ```  
+
+## 3. 准备拓扑文件
+
    编辑tidb-utils/scripts/env/mini_install_template.yaml文件，修改为对应的EC2 Private IP地址，
    如需要自定义配置各角色的运行参数，可参见附录部分。
 
@@ -51,7 +55,7 @@
    示例：
 
    ```bash
-   tiup cluster deploy tidb-cluster v5.2.2 mini_install_template.yaml -u ec2-user -i <key file>
+   tiup cluster deploy tidb-cluster v5.2.2 mini_install_template.yaml -u ec2-user -i mykey.pem
    ```
 
    等待部署成功后启动集群：
@@ -67,29 +71,28 @@
 
 ### 大量批量写入场景
    - TiKV:
-
-    ```yml
-     raftdb.defaultcf.write-buffer-size: 256MB
-     raftstore.apply-pool-size: 4(CPU > 8cores)
-     raftstore.store-pool-size: 4(CPU > 8cores)
-     server.grpc-concurrency: 4(CPU > 8cores)
-     raftstore.raft-max-inflight-msgs: 1024
-     raftdb.max-background-jobs: 8 or 16
-     raftdb.defaultcf.soft-pending-compaction-bytes-limit: 384GB
-     raftdb.defaultcf.hard-pending-compaction-bytes-limit: 512GB
-     level0-slowdown-writes-trigger: 80
-     level0-stop-writes-trigger: 144
-     server.grpc-raft-conn-num: 2(CPU > 8cores)
-    ```
+   ```
+   raftdb.defaultcf.write-buffer-size: 256MB
+   raftstore.apply-pool-size: 4(CPU > 8cores)
+   raftstore.store-pool-size: 4(CPU > 8cores)
+   server.grpc-concurrency: 4(CPU > 8cores)
+   raftstore.raft-max-inflight-msgs: 1024
+   raftdb.max-background-jobs: 8 or 16
+   raftdb.defaultcf.soft-pending-compaction-bytes-limit: 384GB
+   raftdb.defaultcf.hard-pending-compaction-bytes-limit: 512GB
+   level0-slowdown-writes-trigger: 80
+   level0-stop-writes-trigger: 144
+   server.grpc-raft-conn-num: 2(CPU > 8cores)
+   ``` 
    - TiDB:
 
-    ```yml
-     set global tidb_analyze_version = 1
-     performance.committer-concurrency: 256
-    ```
+   ```
+   set global tidb_analyze_version = 1
+   performance.committer-concurrency: 256
+   ```
 
 ### 拓扑文件配置示例：
-```yml
+```yaml
 server_configs:
   tikv:
     raftdb.defaultcf.write-buffer-size: 256MB
