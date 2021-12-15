@@ -82,7 +82,7 @@
    raftdb.defaultcf.hard-pending-compaction-bytes-limit: 512GB
    level0-slowdown-writes-trigger: 80
    level0-stop-writes-trigger: 144
-   server.grpc-raft-conn-num: 2(CPU > 8cores)
+   
    ``` 
    - TiDB:
 
