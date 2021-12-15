@@ -21,9 +21,9 @@ enable-gtid: false
 # charset: ''
 
 from:
-  host: aurora.cluster-cid2iowuup9k.rds.cn-northwest-1.amazonaws.com.cn
-  user: liangfb
-  password: XDj4DYgaJPjr6aVGlRMMN0BjusQ+HrbsR+KQ
+  host: mysql
+  user: user
+  password: password
   port: 3306
 
 #relay log purge strategy
