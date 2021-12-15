@@ -9,6 +9,6 @@ parameters:
   csi.storage.k8s.io/fstype: ext4
   type: gp3
   iops: "4000"
-  throughput: "600"
+  throughput: "400"
 mountOptions: 
   - nodelalloc,noatime
