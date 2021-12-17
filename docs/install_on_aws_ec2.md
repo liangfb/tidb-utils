@@ -68,7 +68,7 @@
    tiup cluster display <cluster-name>
    ```
 
-## 附：常见参数
+## 附一：常见参数
 
 ### 大量批量写入场景
    - TiKV:
@@ -102,3 +102,16 @@ server_configs:
   pd:
     ...
 ```
+
+## 附二：创建表时使数据能够均匀分布
+- 使用AUTO_RANDOM代替AUTO_INCREMENT，来产生更加随机的自增值
+示例：CREATE TABLE t (a bigint PRIMARY KEY AUTO_INCREMENT, b varchar(255));
+- 为表定义region划分
+如果表没有主键或主键不为数值型，建议增加：SHARD_ROW_ID_BITS
+示例：create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4
+为表预切分region：
+使用参数：pre_split_regions=n (n=2^n)
+示例：create table t (a int, b int,index idx1(a)) pre_split_regions=2
+SHARD_ROW_ID_BITS和pre_split_regions也可一起使用
+
+
