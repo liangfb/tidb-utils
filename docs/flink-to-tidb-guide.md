@@ -99,7 +99,8 @@ CREATE TABLE order_item (
     				.withBatchIntervalMs(1)
     				.withBatchSize(200)
     				.build
-    val connectionOptions = (new JdbcConnectionOptions.JdbcConnectionOptionsBuilder)  						.withUrl("jdbc:mysql://<address>:4000/<database>?useServerPrepStmts=true&cachePrepStmts=true&rewriteBatchedStatements=true")  
+    val connectionOptions = (new JdbcConnectionOptions.JdbcConnectionOptionsBuilder)
+            .withUrl("jdbc:mysql://<address>:4000/<database>?useServerPrepStmts=true&cachePrepStmts=true&rewriteBatchedStatements=true")  
     				.withDriverName("com.mysql.jdbc.Driver")
     				.withUsername("your-user")
             .withPassword("your-password")
@@ -113,7 +114,8 @@ CREATE TABLE order_item (
       		ps.setInt(5, t.cnt);    
     	}   
     }  
-    val mySink = JdbcSink.sink(insertSQL, sb, executionOptions, connectionOptions)  sourceDataStream.addSink(mySink).setParallelism(200)  
+    val mySink = JdbcSink.sink(insertSQL, sb, executionOptions, connectionOptions)  
+    sourceDataStream.addSink(mySink).setParallelism(200)  
     env.execute("TiDB Batch Write Job")
     ```
   
