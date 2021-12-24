@@ -30,7 +30,7 @@ val sourceDataStream = env.addSource(new MockOrderItemSource)
 tableEnv.createTemporaryView("mock_orderitem", sourceDataStream)
 ```
 
-**测试用例：
+**测试用例：**
 
 **Flink SQL 表创建：**
 示例语句：
@@ -70,7 +70,7 @@ CREATE TABLE order_item (
   - sink.parallelism' = '200’: 算子并行度，决定了写入TiDB时的线程数![img](https://lh3.googleusercontent.com/Ya4OODl_de2I_L7ymU1jA4njDOnlP0hCdU6VAH000pBVVD6rz6tDfp08Mz_c2CKsI_zL_xNL45kTRMh7S1JDyx8G5mJJceV82RYn1iYkdkN6GwM8hfUV6BNtnUMRGYaHmk0R_J-d)运行时查看TiDB连接数此时增加了200个
   
   - 'sink.buffer-flush.max-rows' = '200' 与 'sink.buffer-flush.interval' = '1': 前者会直接决定批量写入的Batch Size。
-    **实现一：**通过对象化的方式写入，示例代码：  
+    **实现一：** 通过对象化的方式写入，示例代码：  
 
     ```scala
     val orderItemTable = tableEnv.sqlQuery("SELECT id, productId, name, price, cnt FROM mock_orderitem")  
@@ -78,21 +78,21 @@ CREATE TABLE order_item (
     ```
   
     ​	General Log截取：![img](https://lh4.googleusercontent.com/Ba3bb5A75fWRiMer8u_5JT3Rgu6FWjawO4kw7cTXnK4HhMo__DI8ruThOH6jnAAmUUb2B6a0EZduTqCK7hbCM6wiiTOM93UvdLiW6j-oUUU1NfF8ky9mo9wtkHyXI-DPDA-N8W-l)
-    ​	**结论：**根据“1. Flink SQL 表创建”中的配置，会以批量的方式写入，并将INSERT INTO自动转为INSERT INTO …… ON DUPLICATE KEY UPDATE语句。
+    ​	结论：根据“1. Flink SQL 表创建”中的配置，会以批量的方式写入，并将INSERT INTO自动转为INSERT INTO …… ON DUPLICATE KEY UPDATE语句。
   
     
   
-    **实现二：**通过Flink SQL进行写入，示例代码：  
+    **实现二：** 通过Flink SQL进行写入，示例代码：  
   
     ```scala
     tableEnv.executeSql("INSERT INTO order_item (id, productId, name, price, cnt) select id, productId, name, price, cnt FROM mock_orderitem")
     ```
   
-    ​	**结论：**结果同“实现一”，会以批量的方式写入，并将INSERT INTO自动转为INSERT INTO …… ON DUPLICATE KEY UPDATE语句。
+    ​	结论：结果同“实现一”，会以批量的方式写入，并将INSERT INTO自动转为INSERT INTO …… ON DUPLICATE KEY UPDATE语句。
   
     
   
-    **实现三：**调用JDBC Connector进行写入，本示例不依赖“1. Flink SQL 表创建”，示例代码：  
+    **实现三：** 调用JDBC Connector进行写入，本示例不依赖“1. Flink SQL 表创建”，示例代码：  
   
     ```scala
     val executionOptions = JdbcExecutionOptions.builder
@@ -117,11 +117,11 @@ CREATE TABLE order_item (
     env.execute("TiDB Batch Write Job")
     ```
   
-    ​	**结论：**会以批量的方式写入，并将INSERT INTO自动转为INSERT INTO …… ON DUPLICATE KEY UPDATE语句。
+    ​	结论：会以批量的方式写入，并将INSERT INTO自动转为INSERT INTO …… ON DUPLICATE KEY UPDATE语句。
   
     
   
-    **实现四：**获得数据，通过迭代器进行处理后再执行，示例代码：  
+    **实现四：** 获得数据，通过迭代器进行处理后再执行，示例代码：  
   
     ```scala
     val templateSQL = "INSERT INTO order_item (id, productId, name, price, cnt) values (%d, %d, '%s', %d, %d)"  
@@ -136,7 +136,7 @@ CREATE TABLE order_item (
     ```
   
     ​	General Log截取：![img](https://lh6.googleusercontent.com/9N396uwpoQyc5nU8C4yfhmzZa_NkLcUTxdoy1hpfaBgBV-rQ-5Bt3RSRUMIwA7U6Qacb-5rzStaFjwJ7tLT-aN65b-MBm8pRttzF06Gkbe0t7_4WXwXrDosjGuOr3ssOtr3lSeEN)
-    ​	**结论：**无法实现批量写入，但可以将INSERT INTO 转换为INSERT INTO …… ON DUPLICATE KEY UPDATE。即使采用StatementSet，也无法实现批量写入（待进一步验证）。此种实现方式应予以避免。
+    ​	结论：无法实现批量写入，但可以将INSERT INTO 转换为INSERT INTO …… ON DUPLICATE KEY UPDATE。即使采用StatementSet，也无法实现批量写入（待进一步验证）。此种实现方式应予以避免。
   
     
   
