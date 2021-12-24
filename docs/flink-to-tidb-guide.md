@@ -26,7 +26,8 @@
 在Flink Job中创建成表：
 
 ```scala
-val sourceDataStream = env.addSource(new MockOrderItemSource)  tableEnv.createTemporaryView("mock_orderitem", sourceDataStream)
+val sourceDataStream = env.addSource(new MockOrderItemSource)
+tableEnv.createTemporaryView("mock_orderitem", sourceDataStream)
 ```
 
 **测试用例：
@@ -39,7 +40,20 @@ CREATE TABLE order_item (
   id BIGINT,
   productId INT,
   name STRING,
-  price DECIMAL(8,2)  , cnt INT  , PRIMARY KEY (`id`) NOT ENFORCED ) WITH ('connector' = 'jdbc',  'url' = 'jdbc:mysql://<address>:4000/<database>?useServerPrepStmts=true&cachePrepStmts=true&rewriteBatchedStatements=true',  'driver' = 'com.mysql.jdbc.Driver',  'table-name' = 't_order_item',  'username' = 'your-user',  'password' = 'your-password',  'sink.buffer-flush.max-rows' = '200',  'sink.buffer-flush.interval' = '1',  'sink.parallelism' = '200')
+  price DECIMAL(8,2),
+  cnt INT, 
+  PRIMARY KEY (`id`) NOT ENFORCED
+) WITH (
+  'connector' = 'jdbc',
+  'url' = 'jdbc:mysql://<address>:4000/<database>?useServerPrepStmts=true&cachePrepStmts=true&rewriteBatchedStatements=true', 
+  'driver' = 'com.mysql.jdbc.Driver',  
+  'table-name' = 't_order_item',  
+  'username' = 'your-user',  
+  'password' = 'your-password',  
+  'sink.buffer-flush.max-rows' = '200',  
+  'sink.buffer-flush.interval' = '1',  
+  'sink.parallelism' = '200'
+)
 ```
 
 关键参数说明：
