@@ -83,8 +83,8 @@
    raftdb.max-background-jobs: 8 or 16
    raftdb.defaultcf.soft-pending-compaction-bytes-limit: 384GB
    raftdb.defaultcf.hard-pending-compaction-bytes-limit: 512GB
-   level0-slowdown-writes-trigger: 80
-   level0-stop-writes-trigger: 144
+   rocksdb.defaultcf.level0-slowdown-writes-trigger: 80
+   rocksdb.defaultcf.level0-stop-writes-trigger: 144
    
    ```
    - TiDB:
