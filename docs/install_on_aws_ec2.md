@@ -116,7 +116,7 @@ server_configs:
     使用参数：**SHARD_ROW_ID_BITS** （同时适用于没有主键或主键不为数值型）
     
     示例：create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4;
-  - 为表预切分region，增加参数：**PRE_SPLIT_REGIONS**
+  - 为表预切分region，使用参数：**PRE_SPLIT_REGIONS**
     pre_split_regions=n (n=2^n)
     
     示例：create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4 pre_split_regions=2;
