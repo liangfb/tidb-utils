@@ -106,22 +106,24 @@ server_configs:
     ...
 ```
 
-## Appendix 2：Make data evenly distributed when creating tables
+## Appendix 2：Make data distributed when creating tables
 - Use **AUTO_RANDOM** instead of AUTO_INCREMENT to generate random number.
 
   Example: CREATE TABLE t (a bigint PRIMARY KEY AUTO_INCREMENT, b varchar(255));
 
-- Set the number of bits of the shards
+- Migrate existing data and has INCREMENTAL primary key.
+  - Create NONCLUSTERED PRIMARY Key
+  - Shard data into regions
+   - Configure the number of bits of the shards:
+   
+     **SHARD_ROW_ID_BITS**:
+     
+     Example: create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4;
+   - Pre-spilts tables into the number of regions:
 
-  For the tables with a non-integer primary key or no primary key, you can configure **SHARD_ROW_ID_BITS**
-
-  Example: create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4;
-
-- Pre-spilts tables into the number of regions, configure **PRE_SPLIT_REGIONS**
-
-  pre_split_regions=n (n=2^n) 
-
-  Example: create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4 pre_split_regions=2;
+     **PRE_SPLIT_REGIONS**: pre_split_regions=n (n=2^n)
+     
+     Example: create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4 pre_split_regions=2;
 
 
 
