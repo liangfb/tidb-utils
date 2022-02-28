@@ -9,8 +9,9 @@ echo 'The role is:' $role
 echo 'The device is:' $dev
 echo 'The initialization will start after 5 seconds.'
 sleep 5
-
-sudo yum -y install gcc make numactl ntp ntpstat
+sudo apt upgrade
+sudo apt update
+sudo apt -y install gcc make numactl ntp ntpstat
 wget https://github.com/liangfb/assets/raw/master/projects/sshpass-1.08.tar.gz
 tar zxvf sshpass-1.08.tar.gz
 cd sshpass-1.08
@@ -42,7 +43,6 @@ sudo swapoff -a
 #Config network parameters
 sudo bash -c "echo fs.file-max = 1000000 >> /etc/sysctl.conf"
 sudo bash -c "echo net.core.somaxconn = 32768 >> /etc/sysctl.conf"
-#sudo bash -c "echo net.ipv4.tcp_tw_recycle = 0 >> /etc/sysctl.conf"
 sudo bash -c "echo net.ipv4.tcp_syncookies = 0 >> /etc/sysctl.conf"
 sudo bash -c "echo vm.overcommit_memory = 1 >> /etc/sysctl.conf"
 sudo sysctl -p
@@ -58,7 +58,7 @@ EOF'
 #Disable TPH
 sudo bash -c "echo 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' >> /etc/rc.local"
 sudo bash -c "echo 'echo never > /sys/kernel/mm/transparent_hugepage/defrag' >> /etc/rc.local"
-sudo chmod +x /etc/rc.d/rc.local
+sudo chmod +x /etc/rc.local
 sudo bash -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled"
 sudo bash -c "echo never > /sys/kernel/mm/transparent_hugepage/defrag"
 
