@@ -9,25 +9,19 @@ echo 'The role is:' $role
 echo 'The device is:' $dev
 echo 'The initialization will start after 5 seconds.'
 sleep 5
-sudo apt upgrade
-sudo apt update
-sudo apt -y install gcc make numactl ntp ntpstat
-wget https://github.com/liangfb/assets/raw/master/projects/sshpass-1.08.tar.gz
-tar zxvf sshpass-1.08.tar.gz
-cd sshpass-1.08
-sudo ./configure
-sudo make install
-cd ..
+sudo apt-get -y upgrade
+sudo apt-get -y update
+sudo apt-get -y install gcc make numactl ntp ntpstat sshpass
 sudo mkdir /tidb-data
 if [ "$role" = "tikv" ]
 then
     echo 'Initializing disks...'
     sudo mkfs -t ext4 /dev/${dev}
-    sudo mount /dev/${dev} /tidb-data/ -o nodelalloc,noatime,barrier=0
+    sudo mount /dev/${dev} /tidb-data/ -o nodelalloc,noatime
     lsblk -f   
-    uuid=$(sudo blkid | grep /dev/sda1: | cut -d '=' -f 3 | cut -d ' ' -f 1 | xargs)
+    uuid=$(sudo blkid | grep /dev/${dev} | cut -d '=' -f 2 | cut -d ' ' -f 1 | xargs)
     echo $uuid
-    sudo bash -c "echo UUID=${uuid}     /tidb-data  ext4   defaults,nodelalloc,noatime,barrier=0  0   2 >> /etc/fstab"
+    sudo bash -c "echo UUID=${uuid}     /tidb-data  ext4   defaults,nodelalloc,noatime  0   2 >> /etc/fstab"
     mount -t ext4
     echo '/etc/fstab:'
     cat /etc/fstab
