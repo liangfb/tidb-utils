@@ -1,0 +1,238 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploy TiDB Cluster on a Single Node.
+Parameters:
+  TiDBInstanceType:
+    Type: String
+    Default: t3.large
+    AllowedValues:
+      - t3.large
+      - t3.xlarge
+      - m5.2xlarge
+    Description: Enter t3.large, t3.xlarge, or m5.2xlarge. Default is t3.large.
+  TiDBVPC:
+    Description: Choose the VPC
+    Type: AWS::EC2::VPC::Id
+  VPCCidr:
+    Description: VPC's CIDR
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/x
+    Type: String
+    Default: "172.31.0.0/16"
+  TiupNodeSubnet:
+    Description: Choose the subnet of Tiup deployment
+    Type: AWS::EC2::Subnet::Id
+  TiDBSubnet:
+    Description: Choose the subnet on AZ1
+    Type: AWS::EC2::Subnet::Id    
+  DataVolumeSize:
+    Description: Data volume size of TiKV nodes
+    Type: Number
+    Default: 10
+  TiDBVersion:
+    Description: "TiDB's version, e.g.: 5.4.0"
+    Type: String
+    Default: "5.4.0"
+  KeyPair:
+    Description: Choose the SSH KeyPair
+    Type: "AWS::EC2::KeyPair::KeyName"
+    ConstraintDescription: Provide the name of an existing SSH key pair
+
+Mappings:
+  DefaultConfiguration:
+    MachineConfiguration:
+      EC2InstanceType: t2.micro
+    VolumeConfiguration:
+      VolumeIOPS: 4000
+      VolumeThroughtput: 400
+  AWSInstanceType2Arch:
+    t3.large:
+      Arch: HVM64
+    t3.xlarge:
+      Arch: HVM64
+    m5.2xlarge:
+      Arch: HVM64          
+
+  AWSRegionArch2AMI:
+    us-east-1:
+      HVM64: ami-0c02fb55956c7d316
+    us-west-2:
+      HVM64: ami-00ee4df451840fa9d
+    ap-northeast-1:
+      HVM64: ami-0ab0bbbd329f565e6
+    ap-southeast-1:
+      HVM64: ami-0801a1e12f4a9ccc0
+
+Resources:
+  TiDBDeployRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+  TiDBDeployPolicy: 
+    Type: "AWS::IAM::Policy"
+    Properties: 
+      PolicyName: "TiDBDeployPolicy"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: "Allow"
+            Action: "ec2-instance-connect:SendSSHPublicKey"
+            Resource: 
+              Fn::Sub: arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+            Condition:
+              StringEquals:
+                ec2:osuser: "ec2-user"              
+      Roles: 
+        - Ref: "TiDBDeployRole"
+  TiDBDeployInstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Path: "/"
+      Roles: 
+        - Ref: "TiDBDeployRole"
+
+
+  TiDBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable access to TiDB Cluster
+      VpcId: !Ref TiDBVPC
+      SecurityGroupIngress:
+        - IpProtocol: "-1"
+          CidrIp: !Ref VPCCidr
+          Description: Allow all traffic in VPC
+        - IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+          Description: Allow SSH Access
+
+  TiupENI:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiupNodeSubnet
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Tiup Management Node
+
+  TiupNode:
+    DependsOn:
+      - TiKVNode1
+      - TiDBDeployRole
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !Ref TiDBInstanceType
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !Ref TiDBInstanceType, Arch ] ]
+      IamInstanceProfile: !Ref TiDBDeployInstanceProfile
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref TiupENI
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+      Tags:
+        - Key: Name
+          Value: Tiup Management Node
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            export HOME=/root
+            mkdir /tidb-init
+            cd /tidb-init
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q awscliv2.zip
+            ./aws/install
+            /usr/local/bin/aws --version
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/all-in-one-cluster.yaml
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/init_topology.sh
+            chmod +x init_topology.sh
+            ./init_topology.sh all-in-one-cluster.yaml ${tikv1} ${tikv1} ${tikv1} ${tikv1}
+            ssh-keygen -t rsa -f tidb_install_key
+            curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
+            /root/.tiup/bin/tiup cluster
+            /root/.tiup/bin/tiup update --self && tiup update cluster
+            /root/.tiup/bin/tiup --binary cluster
+            /usr/local/bin/aws ec2-instance-connect send-ssh-public-key --instance-id ${tikv1id} --instance-os-user ec2-user --ssh-public-key file://tidb_install_key.pub
+            /root/.tiup/bin/tiup cluster check all-in-one-cluster.yaml -u ec2-user -i tidb_install_key --apply > tiup_check.log
+            /usr/local/bin/aws ec2-instance-connect send-ssh-public-key --instance-id ${tikv1id} --instance-os-user ec2-user --ssh-public-key file://tidb_install_key.pub
+            /root/.tiup/bin/tiup cluster deploy tidb-cluster v${tidbver} all-in-one-cluster.yaml -y -u ec2-user -i tidb_install_key > tiup_deploy.log
+
+          - tikv1: !GetAtt TiKVNode1.PrivateIp
+            tikv1id: !Ref TiKVNode1
+            tidbver: !Ref TiDBVersion
+
+
+  TiKVENI1:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiKV-1
+
+  TiKVNode1:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !Ref TiDBInstanceType
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !Ref TiDBInstanceType, Arch ] ]
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref TiKVENI1
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+        - DeviceName: /dev/xvdb
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref DataVolumeSize
+            Iops: !FindInMap
+              - DefaultConfiguration
+              - VolumeConfiguration
+              - VolumeIOPS
+            DeleteOnTermination: true
+
+      Tags:
+        - Key: Name
+          Value: TiKV-1
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh tikv nvme1n1 > node_init.log
+
+Outputs:
+  TiDBClusterAddress:
+    Description: TiDB's IP address
+    Value: !GetAtt TiKVNode1.PrivateIp
+
+  Notice:
+    Description: Notice for the install
+    Value: "After create CloudFormation stack completed, you can perform following step to connect TiDB:\n 1. SSH login into Tiup Node.\n 2. Use /root/.tiup/bin/tiup cluster start tidb-cluster command start TiDB.\n 3. Use MySQL CLI or other clients to connect, user: root, password: empty, port: 4000"
+
+
+
