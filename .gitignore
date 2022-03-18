@@ -1,3 +1,5 @@
 *.pem
 *.pub
 *.DSStore
+templates/*.DSStore
+templates/aws/*.DSStore
