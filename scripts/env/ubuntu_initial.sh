@@ -13,7 +13,7 @@ sudo apt-get -y upgrade
 sudo apt-get -y update
 sudo apt-get -y install gcc make numactl ntp ntpstat sshpass
 sudo mkdir /tidb-data
-if [ "$role" = "tikv" ]
+if [ "$role" = "tikv" ] || [ "$role" = "tiflash" ]
 then
     echo 'Initializing disks...'
     sudo mkfs -t ext4 /dev/${dev}

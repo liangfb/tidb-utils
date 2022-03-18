@@ -10,7 +10,7 @@ Parameters:
       - m5.2xlarge
     Description: Enter t3.large, t3.xlarge, or m5.2xlarge. Default is t3.large.
   TiDBVPC:
-    Description: Choose the VPC
+    Description: Select a VPC for TiDB cluster deployment.
     Type: AWS::EC2::VPC::Id
   VPCCidr:
     Description: VPC's CIDR
@@ -19,32 +19,34 @@ Parameters:
     Type: String
     Default: "172.31.0.0/16"
   TiupNodeSubnet:
-    Description: Choose the subnet of Tiup deployment
+    Description: Select a subnet for Tiup tool deployment.
     Type: AWS::EC2::Subnet::Id
   TiDBSubnet:
-    Description: Choose the subnet on AZ1
+    Description: Select a subnet for TiDB cluster deployment.
     Type: AWS::EC2::Subnet::Id    
   DataVolumeSize:
-    Description: Data volume size of TiKV nodes
+    Description: Data volume size
     Type: Number
-    Default: 10
+    Default: 100
   TiDBVersion:
     Description: "TiDB's version, e.g.: 5.4.0"
     Type: String
     Default: "5.4.0"
   KeyPair:
-    Description: Choose the SSH KeyPair
+    Description: Your SSH key
     Type: "AWS::EC2::KeyPair::KeyName"
     ConstraintDescription: Provide the name of an existing SSH key pair
 
 Mappings:
   DefaultConfiguration:
     MachineConfiguration:
-      EC2InstanceType: t2.micro
+      TiupInstanceType: t2.micro
     VolumeConfiguration:
       VolumeIOPS: 4000
       VolumeThroughtput: 400
   AWSInstanceType2Arch:
+    t2.micro:
+      Arch: HVM64
     t3.large:
       Arch: HVM64
     t3.xlarge:
@@ -132,7 +134,10 @@ Resources:
       - TiDBDeployRole
     Type: "AWS::EC2::Instance"
     Properties:
-      InstanceType: !Ref TiDBInstanceType
+      InstanceType: !FindInMap
+        - DefaultConfiguration
+        - MachineConfiguration
+        - TiupInstanceType
       ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !Ref TiDBInstanceType, Arch ] ]
       IamInstanceProfile: !Ref TiDBDeployInstanceProfile
       KeyName: !Ref KeyPair
@@ -143,7 +148,7 @@ Resources:
         - DeviceName: /dev/xvda
           Ebs:
             VolumeType: gp2
-            VolumeSize: 20
+            VolumeSize: 10
       Tags:
         - Key: Name
           Value: Tiup Management Node
@@ -161,7 +166,7 @@ Resources:
             wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/all-in-one-cluster.yaml
             wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/init_topology.sh
             chmod +x init_topology.sh
-            ./init_topology.sh all-in-one-cluster.yaml ${tikv1} ${tikv1} ${tikv1} ${tikv1}
+            ./init_topology.sh single_node_cluster.yaml ${tikv1} ${tikv1} ${tikv1} ${tikv1}
             ssh-keygen -t rsa -f tidb_install_key
             curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
             /root/.tiup/bin/tiup cluster

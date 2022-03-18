@@ -1,0 +1,641 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Deploy TiDB Cluster on Multiple Nodes for Production.
+Parameters:
+  TiDBVPC:
+    Description: Choose the VPC
+    Type: AWS::EC2::VPC::Id
+  VPCCidr:
+    Description: VPC's CIDR
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/x
+    Type: String
+    Default: "172.31.0.0/16"
+  TiupNodeSubnet:
+    Description: Choose the subnet of Tiup deployment
+    Type: AWS::EC2::Subnet::Id
+  TiDBSubnet1:
+    Description: Select the subnet of Availiability Zone 1. For production, we recommend you deploy TiDB across 3 Availiability Zones.
+    Type: AWS::EC2::Subnet::Id
+  TiDBSubnet2:
+    Description: Select the subnet of Availiability Zone 2. For production, we recommend you deploy TiDB across 3 Availiability Zones.
+    Type: AWS::EC2::Subnet::Id
+  TiDBSubnet3:
+    Description: Select the subnet of Availiability Zone 3. For production, we recommend you deploy TiDB across 3 Availiability Zones.
+    Type: AWS::EC2::Subnet::Id        
+  DataVolumeSize:
+    Description: Data volume size of TiKV nodes
+    Type: Number
+    Default: 1024
+  TiDBVersion:
+    Description: "TiDB's version, e.g.: 5.4.0"
+    Type: String
+    Default: "5.4.0"
+  KeyPair:
+    Description: Choose the SSH KeyPair
+    Type: "AWS::EC2::KeyPair::KeyName"
+    ConstraintDescription: Provide the name of an existing SSH key pair
+
+Mappings:
+
+  MachineConfiguration:
+    Tiup:
+      InstanceType: t2.micro
+    TiKV:
+      InstanceType: t2.micro
+    TiDB:
+      InstanceType: t2.micro
+    PD:
+      InstanceType: t2.micro
+    Monitor:
+      InstanceType: t2.micro
+  VolumeConfiguration:
+    Volume:
+      IOPS: 3000
+      Throughtput: 400
+
+  AWSInstanceType2Arch:
+    t2.micro:
+      Arch: HVM64
+    m5.2xlarge:
+      Arch: HVM64
+    c5.large:
+      Arch: HVM64
+    m5.large:
+      Arch: HVM64      
+
+  AWSRegionArch2AMI:
+    us-east-1:
+      HVM64: ami-0c02fb55956c7d316
+    us-west-2:
+      HVM64: ami-00ee4df451840fa9d
+    ap-northeast-1:
+      HVM64: ami-0ab0bbbd329f565e6
+    ap-southeast-1:
+      HVM64: ami-0801a1e12f4a9ccc0
+
+Resources:
+  TiDBDeployRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+  TiDBDeployPolicy: 
+    Type: "AWS::IAM::Policy"
+    Properties: 
+      PolicyName: "TiDBDeployPolicy"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: "Allow"
+            Action: "ec2-instance-connect:SendSSHPublicKey"
+            Resource: 
+              Fn::Sub: arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+            Condition:
+              StringEquals:
+                ec2:osuser: "ec2-user"              
+      Roles: 
+        - Ref: "TiDBDeployRole"
+  TiDBDeployInstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Path: "/"
+      Roles: 
+        - Ref: "TiDBDeployRole"
+
+  TiDBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable access to TiDB Cluster
+      VpcId: !Ref TiDBVPC
+      SecurityGroupIngress:
+        - IpProtocol: "-1"
+          CidrIp: !Ref VPCCidr
+          Description: Allow all traffic in VPC
+        - IpProtocol: "tcp"
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+          Description: Allow SSH Access
+
+  TiupENI:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiupNodeSubnet
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Tiup Management Node
+
+  TiupNode:
+    DependsOn:
+      - TiKVNode1
+      - TiKVNode2
+      - TiKVNode3
+      - TiDBNode1
+      - TiDBNode2
+      - PDNode1      
+      - PDNode2
+      - PDNode3
+      - MonitorNode            
+      - TiDBDeployRole
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, Tiup, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, Tiup, InstanceType], Arch ] ]
+      IamInstanceProfile: !Ref TiDBDeployInstanceProfile
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref TiupENI
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+      Tags:
+        - Key: Name
+          Value: Tiup Management Node
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            export HOME=/root
+            mkdir /tidb-init
+            cd /tidb-init
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q awscliv2.zip
+            ./aws/install
+            /usr/local/bin/aws --version
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/mini_install_template.yaml
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/init_topology.sh
+            chmod +x init_topology.sh
+            ./init_topology.sh mini_install_template.yaml ${tikv1ip} ${tidb1ip} ${pd1ip} ${monitorip} ${tikv2ip} ${tikv3ip} ${tidb2ip} ${pd2ip} ${pd3ip}
+            ssh-keygen -t rsa -f tidb_install_key
+            curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
+            /root/.tiup/bin/tiup cluster
+            /root/.tiup/bin/tiup update --self && tiup update cluster
+            /root/.tiup/bin/tiup --binary cluster
+            nodelist=(${tikv1id} ${tikv2id} ${tikv3id} ${tidb1id} ${tidb2id} ${pd1id} ${pd2id} ${pd3id} ${monitorid})
+            for i in ${!nodelist[@]}; do
+              /usr/local/bin/aws ec2-instance-connect send-ssh-public-key --instance-id $i --instance-os-user ec2-user --ssh-public-key file://tidb_install_key.pub
+            done
+            /root/.tiup/bin/tiup cluster check mini_install_template.yaml -u ec2-user -i tidb_install_key --apply > tiup_check.log
+            for i in ${!nodelist[@]}; do
+              /usr/local/bin/aws ec2-instance-connect send-ssh-public-key --instance-id $i --instance-os-user ec2-user --ssh-public-key file://tidb_install_key.pub
+            done
+            /root/.tiup/bin/tiup cluster deploy tidb-cluster v${tidbver} mini_install_template.yaml -y -u ec2-user -i tidb_install_key > tiup_deploy.log
+
+          - tikv1ip: !GetAtt TiKVNode1.PrivateIp
+            tikv2ip: !GetAtt TiKVNode2.PrivateIp
+            tikv3ip: !GetAtt TiKVNode3.PrivateIp
+            tidb1ip: !GetAtt TiDBNode1.PrivateIp
+            tidb2ip: !GetAtt TiDBNode2.PrivateIp
+            pd1ip: !GetAtt PDNode1.PrivateIp
+            pd2ip: !GetAtt PDNode2.PrivateIp
+            pd3ip: !GetAtt PDNode3.PrivateIp
+            monitorip: !GetAtt MonitorNode.PrivateIp
+            tikv1id: !Ref TiKVNode1
+            tikv2id: !Ref TiKVNode2
+            tikv3id: !Ref TiKVNode3
+            tidb1id: !Ref TiDBNode1
+            tidb2id: !Ref TiDBNode2
+            pd1id: !Ref PDNode1
+            pd2id: !Ref PDNode2
+            pd3id: !Ref PDNode3
+            monitorid: !Ref MonitorNode
+            tidbver: !Ref TiDBVersion
+
+
+  TiKVENI1:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet1
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiDB-TiKV-1
+  TiKVNode1:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, TiKV, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, TiKV, InstanceType ], Arch ] ]
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref TiKVENI1
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+        - DeviceName: /dev/xvdb
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref DataVolumeSize
+            Iops: !FindInMap [VolumeConfiguration, Volume, IOPS]
+            DeleteOnTermination: false
+      Tags:
+        - Key: Name
+          Value: TiDB-TiKV-1
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh tikv nvme1n1 > node_init.log
+
+
+  TiKVENI2:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet2
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiDB-TiKV-2
+  TiKVNode2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, TiKV, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, TiKV, InstanceType ], Arch ] ]
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref TiKVENI2
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+        - DeviceName: /dev/xvdb
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref DataVolumeSize
+            Iops: !FindInMap [VolumeConfiguration, Volume, IOPS]
+            DeleteOnTermination: false
+      Tags:
+        - Key: Name
+          Value: TiDB-TiKV-2
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh tikv nvme1n1 > node_init.log
+
+  TiKVENI3:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet3
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiDB-TiKV-3
+  TiKVNode3:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, TiKV, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, TiKV, InstanceType ], Arch ] ]
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref TiKVENI3
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+        - DeviceName: /dev/xvdb
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: !Ref DataVolumeSize
+            Iops: !FindInMap [VolumeConfiguration, Volume, IOPS]
+            DeleteOnTermination: false
+      Tags:
+        - Key: Name
+          Value: TiDB-TiKV-3
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh tikv nvme1n1 > node_init.log
+
+  TiDBENI1:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet1
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiDB-1
+
+  TiDBNode1:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, TiDB, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, TiDB, InstanceType ], Arch ] ]
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref TiDBENI1
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+      Tags:
+        - Key: Name
+          Value: TiDB-1
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh > node_init.log
+
+  TiDBENI2:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet2
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiDB-2
+
+  TiDBNode2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, TiDB, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, TiDB, InstanceType ], Arch ] ]
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref TiDBENI2
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+      Tags:
+        - Key: Name
+          Value: TiDB-2
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh > node_init.log
+
+
+  PDENI1:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet1
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiDB-PD-1
+
+  PDNode1:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, TiDB, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region', !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, PD, InstanceType ], Arch ] ]
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref PDENI1
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+      Tags:
+        - Key: Name
+          Value: TiDB-PD-1
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh > node_init.log
+
+  PDENI2:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet2
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiDB-PD-2
+
+  PDNode2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, TiDB, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region', !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, PD, InstanceType ], Arch ] ]      
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref PDENI2
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+      Tags:
+        - Key: Name
+          Value: TiDB-PD-2
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh > node_init.log
+
+  PDENI3:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet3
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiDB-PD-3
+
+  PDNode3:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, TiDB, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, PD, InstanceType ], Arch ] ]
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref PDENI3
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 20
+      Tags:
+        - Key: Name
+          Value: TiDB-PD-3
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh > node_init.log
+
+  MonitorENI:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: ENI
+      SubnetId: !Ref TiDBSubnet1
+      GroupSet:
+        - !Ref TiDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: TiDB-Monitor
+
+  MonitorNode:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !FindInMap [ MachineConfiguration, Monitor, InstanceType ]
+      ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region' , !FindInMap [ AWSInstanceType2Arch, !FindInMap [ MachineConfiguration, Monitor, InstanceType ], Arch ] ]
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref MonitorENI
+          DeviceIndex: 0
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 50
+      Tags:
+        - Key: Name
+          Value: TiDB-Monitor
+      UserData:
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /tidb-init
+            cd /tidb-init
+            wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
+            chmod +x amzn_initial.sh
+            ./amzn_initial.sh > node_init.log
+
+  TiDBNLB:
+    DependsOn:
+      - TiupNode
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: TiDB-NLB
+      Scheme: internal
+      Subnets:
+        - !Ref TiDBSubnet1
+        - !Ref TiDBSubnet2
+      Tags:
+        - Key: Name
+          Value: tidb-nlb
+      Type: network
+
+  NLBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthyThresholdCount: 5
+      Name: tidb-target
+      Port: 4000
+      Protocol: TCP
+      Tags:
+        - Key: Name
+          Value: tidb-target
+      Targets:
+        - Id: !Ref TiDBNode1
+          Port: 4000
+        - Id: !Ref TiDBNode2
+          Port: 4000
+      TargetType: instance
+      UnhealthyThresholdCount: 5
+      VpcId: !Ref TiDBVPC
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref TiDBNLB
+      Port: 4000
+      Protocol: TCP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref NLBTargetGroup
+
+
+Outputs:
+  TiDBClusterAddress:
+    Description: TiDB's IP address
+    Value: !GetAtt TiDBNLB.DNSName
+
+  Port:
+    Description: Network port for TiDB.
+    Value: "Port: 4000"
+
+  Credential:
+    Description: Default credential information.
+    Value: "User: root, Password: empty"
+
+  Notice:
+    Description: Notice for TiDB CloudFormation Stack
+    Value: "When the stack created successful, you can perform following steps to connect TiDB:\n 1. SSH login into Tiup Node.\n 2. Use '/root/.tiup/bin/tiup cluster start tidb-cluster' command start TiDB.\n 3. Use MySQL CLI or other clients connect to TiDB."
+
+
+

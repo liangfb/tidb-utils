@@ -18,7 +18,7 @@ sudo yum -y install gcc gcc-c++ make numactl chrony wget
 #sudo make install
 #cd ..
 sudo mkdir /tidb-data
-if [ "$role" = "tikv" ]
+if [ "$role" = "tikv" ] || [ "$role" = "tiflash" ]
 then
     echo 'Initializing disks...'
     sudo mkfs -t ext4 /dev/${dev}
