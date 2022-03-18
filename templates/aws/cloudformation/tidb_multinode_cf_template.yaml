@@ -1,8 +1,11 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Deploy TiDB Cluster on Multiple Nodes for Production.
+#Author: Liang Fengbiao
+#Source: http://github.com/liangfb
+#E-mail: liang.fb@gmail.com
+Description: Deploy TiDB Cluster on Multiple EC2 instances for production. It contains PD, TiKV, TiDB and Monitor.
 Parameters:
   TiDBVPC:
-    Description: Choose the VPC
+    Description: Select the VPC for TiDB cluster deployment
     Type: AWS::EC2::VPC::Id
   VPCCidr:
     Description: VPC's CIDR
@@ -11,19 +14,19 @@ Parameters:
     Type: String
     Default: "172.31.0.0/16"
   TiupNodeSubnet:
-    Description: Choose the subnet of Tiup deployment
+    Description: Choose the subnet for Tiup tool deployment
     Type: AWS::EC2::Subnet::Id
   TiDBSubnet1:
-    Description: Select the subnet of Availiability Zone 1. For production, we recommend you deploy TiDB across 3 Availiability Zones.
+    Description: Select the subnet for Availability Zone 1. For production, we recommend deploying your TiDB across 3 Availability Zones.
     Type: AWS::EC2::Subnet::Id
   TiDBSubnet2:
-    Description: Select the subnet of Availiability Zone 2. For production, we recommend you deploy TiDB across 3 Availiability Zones.
+    Description: Select the subnet for Availability Zone 2. For production, we recommend deploying your TiDB across 3 Availability Zones.
     Type: AWS::EC2::Subnet::Id
   TiDBSubnet3:
-    Description: Select the subnet of Availiability Zone 3. For production, we recommend you deploy TiDB across 3 Availiability Zones.
+    Description: Select the subnet for Availability Zone 3. For production, we recommend deploying your TiDB across 3 Availability Zones.
     Type: AWS::EC2::Subnet::Id        
   DataVolumeSize:
-    Description: Data volume size of TiKV nodes
+    Description: Data volume size for TiKV nodes
     Type: Number
     Default: 1024
   TiDBVersion:
@@ -31,7 +34,7 @@ Parameters:
     Type: String
     Default: "5.4.0"
   KeyPair:
-    Description: Choose the SSH KeyPair
+    Description: Select the SSH KeyPair to login into the EC2 instances.
     Type: "AWS::EC2::KeyPair::KeyName"
     ConstraintDescription: Provide the name of an existing SSH key pair
 

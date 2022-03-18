@@ -1,5 +1,8 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Deploy TiDB Cluster on a Single Node.
+#Author: Liang Fengbiao
+#Source: http://github.com/liangfb
+#E-mail: liang.fb@gmail.com
+Description: Deploy TiDB Cluster on a single EC2 instance for evaluation. It contains PD, TiKV, TiDB and Monitor.
 Parameters:
   TiDBInstanceType:
     Type: String
