@@ -257,7 +257,7 @@ Resources:
             cd /tidb-init
             wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
             chmod +x amzn_initial.sh
-            ./amzn_initial.sh tikv nvme1n1 > node_init.log
+            ./amzn_initial.sh tikv xvdb > node_init.log
 
 
   TiKVENI2:
@@ -301,7 +301,7 @@ Resources:
             cd /tidb-init
             wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
             chmod +x amzn_initial.sh
-            ./amzn_initial.sh tikv nvme1n1 > node_init.log
+            ./amzn_initial.sh tikv xvdb > node_init.log
 
   TiKVENI3:
     Type: AWS::EC2::NetworkInterface
@@ -344,7 +344,7 @@ Resources:
             cd /tidb-init
             wget https://raw.githubusercontent.com/liangfb/tidb-utils/main/scripts/env/amzn_initial.sh
             chmod +x amzn_initial.sh
-            ./amzn_initial.sh tikv nvme1n1 > node_init.log
+            ./amzn_initial.sh tikv xvdb > node_init.log
 
   TiDBENI1:
     Type: AWS::EC2::NetworkInterface

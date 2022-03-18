@@ -21,7 +21,5 @@ sed -i "s/{tikv-2}/$6/g" $1
 sed -i "s/{tikv-3}/$7/g" $1
 sed -i "s/{tidb-2}/$8/g" $1
 sed -i "s/{pd-2}/$9/g" $1
-sed -i "s/{pd-3}/$10/g" $1
-
-return 0
+sed -i "s/{pd-3}/${10}/g" $1
 
