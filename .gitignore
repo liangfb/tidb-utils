@@ -1,5 +1,6 @@
 *.pem
 *.pub
 *.DSStore
+scripts/*.DSStore
 templates/*.DSStore
 templates/aws/*.DSStore

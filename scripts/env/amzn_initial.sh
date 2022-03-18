@@ -11,12 +11,12 @@ echo 'The initialization will start after 5 seconds.'
 sleep 5
 
 sudo yum -y install gcc gcc-c++ make numactl chrony wget
-wget https://github.com/liangfb/assets/raw/master/projects/sshpass-1.08.tar.gz
-tar zxvf sshpass-1.08.tar.gz
-cd sshpass-1.08
-sudo ./configure
-sudo make install
-cd ..
+#wget https://github.com/liangfb/assets/raw/master/projects/sshpass-1.08.tar.gz
+#tar zxvf sshpass-1.08.tar.gz
+#cd sshpass-1.08
+#sudo ./configure
+#sudo make install
+#cd ..
 sudo mkdir /tidb-data
 if [ "$role" = "tikv" ]
 then
