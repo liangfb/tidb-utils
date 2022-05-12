@@ -72,25 +72,25 @@
 
 ## 附一：常见参数
 
-### 大量批量写入场景
+### 大规模OLTP场景
    - TiKV:
    ```
    raftdb.defaultcf.write-buffer-size: 256MB
-   raftstore.apply-pool-size: 4(CPU > 8cores)
-   raftstore.store-pool-size: 4(CPU > 8cores)
+   raftstore.apply-pool-size: 3(CPU > 8cores)
+   raftstore.store-pool-size: 2
    raftstore.raft-max-inflight-msgs: 1024
-   raftdb.max-background-jobs: 8 or 16
    raftdb.defaultcf.soft-pending-compaction-bytes-limit: 384GB
    raftdb.defaultcf.hard-pending-compaction-bytes-limit: 512GB
    rocksdb.defaultcf.level0-slowdown-writes-trigger: 80
    rocksdb.defaultcf.level0-stop-writes-trigger: 144
-   
+   raftstore.store-io-pool-size: 1(CPU > 8cores)
+   raft-engine.enable: true
+
    ```
    - TiDB:
 
    ```
-   set global tidb_analyze_version = 1
-   performance.committer-concurrency: 256
+      performance.committer-concurrency: 256
    ```
 
 ### 拓扑文件配置示例：
@@ -110,15 +110,27 @@ server_configs:
 
   示例：CREATE TABLE t (a bigint PRIMARY KEY AUTO_INCREMENT, b varchar(255));
 
-- 如迁移现有数据及带有连续自增主键，方案如下：
+- 应对连续自增主键的数据分散方案：
   - 创建主键为NONCLUSTERED类型
   - 为表定义region划分：
-    使用参数：**SHARD_ROW_ID_BITS** （同时适用于没有主键或主键不为数值型）
+    使用参数：**SHARD_ROW_ID_BITS** 和 **PRE_SPLIT_REGIONS**
     
-    示例：create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4;
-  - 为表预切分region，使用参数：**PRE_SPLIT_REGIONS**
-    pre_split_regions=n (n=2^n)
-    
-    示例：create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4 pre_split_regions=2;
-  
+    示例：
+    ```sql
+    create table t (`a` int NOT NULL, `b` int, `c` int, PRIMARY KEY (`a`) /*T![clustered_index] NONCLUSTERED */ ) SHARD_ROW_ID_BITS=4 PRE_SPLIT_REGIONS=4;
+    ```
 
+## 附三：为应用程序中的数据库连接字符串增加高性能选项
+
+- 在连接字符串中加入以下选项：
+useServerPrepStmts=true&cachePrepStmts=true&prepStmtCacheSize=1000&prepStmtCacheSqlLimit=20480&useConfigs=maxPerformance
+
+## 附四：开启 RC Read 和小表缓存(above version 6)
+- RC Read, 降低 tso cmd 次数从而降低了 tso wait 以及平均 query duration，有助于提升QPS
+```sql
+set global tidb_rc_read_check_ts=on;
+```
+- 小表缓存
+```sql
+alter table t1 cache;
+```

@@ -73,24 +73,24 @@
 
 ## Appendix 1: Suggested parameters
 
-### A large number of batch writes
+### Large scale OLTP
    - TiKV:
    ```
    raftdb.defaultcf.write-buffer-size: 256MB
-   raftstore.apply-pool-size: 4(CPU > 8cores)
-   raftstore.store-pool-size: 4(CPU > 8cores)
+   raftstore.apply-pool-size: 3(CPU > 8cores)
+   raftstore.store-pool-size: 2
    raftstore.raft-max-inflight-msgs: 1024
-   raftdb.max-background-jobs: 8 or 16
    raftdb.defaultcf.soft-pending-compaction-bytes-limit: 384GB
    raftdb.defaultcf.hard-pending-compaction-bytes-limit: 512GB
    rocksdb.defaultcf.level0-slowdown-writes-trigger: 80
    rocksdb.defaultcf.level0-stop-writes-trigger: 144
+   raftstore.store-io-pool-size: 1(CPU > 8cores)
+   raft-engine.enable: true
    
    ```
    - TiDB:
 
    ```
-   set global tidb_analyze_version = 1
    performance.committer-concurrency: 256
    ```
 
@@ -111,19 +111,27 @@ server_configs:
 
   Example: CREATE TABLE t (a bigint PRIMARY KEY AUTO_INCREMENT, b varchar(255));
 
-- Migrate existing data and has INCREMENTAL primary key.
+- Shard INCREMENTAL primary key solution:
   - Create NONCLUSTERED PRIMARY Key
-  - Shard data into regions
-   - Configure the number of bits of the shards:
-   
-     **SHARD_ROW_ID_BITS**:
-     
-     Example: create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4;
-   - Pre-spilts tables into the number of regions:
+  - Configure the number of bits of the shards:
+  
+     **SHARD_ROW_ID_BITS** and **PRE_SPLIT_REGIONS**
 
-     **PRE_SPLIT_REGIONS**: pre_split_regions=n (n=2^n)
-     
-     Example: create table t (a int, b int,index idx1(a)) shard_row_id_bits = 4 pre_split_regions=2;
+    Example: 
+    ```sql
+    create table t (`a` int NOT NULL, `b` int, `c` int, PRIMARY KEY (`a`) /*T![clustered_index] NONCLUSTERED */ ) SHARD_ROW_ID_BITS=4 PRE_SPLIT_REGIONS=4;
+    ```
 
+## Appendix 3：Add high performance options to database connection string for applications
+- Add options to database connection string:
+useServerPrepStmts=true&cachePrepStmts=true&prepStmtCacheSize=1000&prepStmtCacheSqlLimit=20480&useConfigs=maxPerformance
 
-
+## Appendix 4：Enable RC read and Small table buffer (above version 6)
+- RC Read, 降低 tso cmd 次数从而降低了 tso wait 以及平均 query duration，有助于提升QPS
+```sql
+set global tidb_rc_read_check_ts=on;
+```
+- Small table buffer
+```sql
+alter table t1 cache;
+```
