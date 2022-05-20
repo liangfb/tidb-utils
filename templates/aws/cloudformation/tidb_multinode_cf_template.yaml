@@ -30,9 +30,9 @@ Parameters:
     Type: Number
     Default: 1024
   TiDBVersion:
-    Description: "TiDB's version, e.g.: 5.4.0"
+    Description: "TiDB's version, e.g.: 6.0.0"
     Type: String
-    Default: "5.4.0"
+    Default: "6.0.0"
   KeyPair:
     Description: Select the SSH KeyPair to login into the EC2 instances.
     Type: "AWS::EC2::KeyPair::KeyName"
@@ -48,9 +48,9 @@ Mappings:
     TiDB:
       InstanceType: m5.2xlarge
     PD:
-      InstanceType: c5.large
+      InstanceType: c5.xlarge
     Monitor:
-      InstanceType: m5.large
+      InstanceType: m5.xlarge
   VolumeConfiguration:
     Volume:
       IOPS: 3000
