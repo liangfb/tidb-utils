@@ -29,3 +29,18 @@ grafana_servers:
 
 alertmanager_servers:
   - host: {monitor}
+  
+server_configs:
+  tidb:
+    log.level: error
+    prepared-plan-cache.enabled: true
+  tikv:
+    raft-engine.enable: true
+    raftstore.store-io-pool-size: 1
+    raftstore.store-max-batch-size: 1024
+    raftstore.apply-max-batch-size: 1024
+    rocksdb.defaultcf.write-buffer-size: 256MB
+    rocksdb.writecf.write-buffer-size: 256MB
+    rocksdb.lockcf.write-buffer-size: 256MB
+    
+    
