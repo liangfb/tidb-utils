@@ -75,7 +75,7 @@
 ### 大规模OLTP场景
    - TiKV:
    ```
-   raftdb.defaultcf.write-buffer-size: 256MB
+
    raftstore.apply-pool-size: 3(CPU > 8cores)
    raftstore.store-pool-size: 2
    raftstore.raft-max-inflight-msgs: 1024
@@ -85,6 +85,11 @@
    rocksdb.defaultcf.level0-stop-writes-trigger: 144
    raftstore.store-io-pool-size: 1(CPU > 8cores)
    raft-engine.enable: true
+   raftstore.store-max-batch-size: 1024
+   raftstore.apply-max-batch-size: 1024
+   rocksdb.defaultcf.write-buffer-size: 256MB
+   rocksdb.writecf.write-buffer-size: 256MB
+   rocksdb.lockcf.write-buffer-size: 256MB   
 
    ```
    - TiDB:
