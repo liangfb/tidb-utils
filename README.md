@@ -1,8 +1,8 @@
 # Awesome TiDB Utils
 
-- OS Configuration
+- Prerequisite setup
 
-  Run a simple script to complete the configuration of the OS, such as: package installation, volume mount, variable configuration etc.
+  Run a simple script to complete the configuration, such as software installation, mount volumes, modify OS options etc.
   Supported OS:
 
   - Amazon Linux 2
