@@ -109,8 +109,10 @@ server_configs:
 ## Appendix 2：Make data distributed when creating tables
 - Use **AUTO_RANDOM** instead of AUTO_INCREMENT to generate random number.
 
-  Example: CREATE TABLE t (a bigint PRIMARY KEY AUTO_INCREMENT, b varchar(255));
-
+  Example: 
+  ```
+  CREATE TABLE t (a bigint PRIMARY KEY AUTO_RANDOM, b varchar(255));
+  ```
 - Shard INCREMENTAL primary key solution:
   - Create NONCLUSTERED PRIMARY Key
   - Configure the number of bits of the shards:
@@ -119,7 +121,7 @@ server_configs:
 
     Example: 
     ```sql
-    create table t (`a` int NOT NULL, `b` int, `c` int, PRIMARY KEY (`a`) /*T![clustered_index] NONCLUSTERED */ ) SHARD_ROW_ID_BITS=4 PRE_SPLIT_REGIONS=4;
+    create table t (`a` bigint NOT NULL, `b` int, `c` int, PRIMARY KEY (`a`) /*T![clustered_index] NONCLUSTERED */ ) SHARD_ROW_ID_BITS=4 PRE_SPLIT_REGIONS=4;
     ```
 
 ## Appendix 3：Add high performance options to database connection string for applications
