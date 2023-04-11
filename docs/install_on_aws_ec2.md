@@ -113,8 +113,10 @@ server_configs:
 ## 附二：创建表时使数据能够均匀分布
 - 使用AUTO_RANDOM代替AUTO_INCREMENT，来产生更加随机的自增值
 
-  示例：CREATE TABLE t (a bigint PRIMARY KEY AUTO_INCREMENT, b varchar(255));
-
+  示例：
+  ```
+  CREATE TABLE t (a bigint PRIMARY KEY AUTO_RANDOM, b varchar(255));
+  ```
 - 应对连续自增主键的数据分散方案：
   - 创建主键为NONCLUSTERED类型
   - 为表定义region划分：
@@ -122,7 +124,7 @@ server_configs:
     
     示例：
     ```sql
-    create table t (`a` int NOT NULL, `b` int, `c` int, PRIMARY KEY (`a`) /*T![clustered_index] NONCLUSTERED */ ) SHARD_ROW_ID_BITS=4 PRE_SPLIT_REGIONS=4;
+    create table t (`a` bigint NOT NULL, `b` int, `c` int, PRIMARY KEY (`a`) /*T![clustered_index] NONCLUSTERED */ ) SHARD_ROW_ID_BITS=4 PRE_SPLIT_REGIONS=4;
     ```
 
 ## 附三：为应用程序中的数据库连接字符串增加高性能选项
